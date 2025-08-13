@@ -20,7 +20,7 @@ export function initClientWSS(server) {
       let msg;
       try {
         msg = JSON.parse(raw.toString());
-        console.log('[WS] Message received from client:', msg);
+        // console.log('[WS] Message received from client:', msg);
       } catch (err) {
         console.error('[WS] Invalid JSON message:', raw.toString());
         return;
@@ -44,39 +44,39 @@ export function initClientWSS(server) {
       }
     });
 
-    // // Gemini → Client
-    // geminiSession.ws.on('message', (data) => {
-    //   try {
-    //     const gmsg = JSON.parse(data.toString());
-    //     console.log('[WS] Message received from Gemini');
+    // Gemini → Client
+    geminiSession.ws.on('message', (data) => {
+      try {
+        const gmsg = JSON.parse(data.toString());
+        console.log('[WS] Message received from Gemini');
 
-    //     // Forward audio chunks
-    //     if (gmsg.serverContent?.modelTurn?.parts) {
-    //       gmsg.serverContent.modelTurn.parts.forEach(part => {
-    //         if (part.inlineData?.mimeType?.startsWith('audio/')) {
-    //           ws.send(JSON.stringify({
-    //             type: 'audio-out',
-    //             mimeType: part.inlineData.mimeType,
-    //             audio: part.inlineData.data
-    //           }));
-    //           console.log('[WS] Audio chunk sent to client:', part.inlineData.mimeType);
-    //         }
-    //       });
-    //     }
+        // Forward audio chunks
+        if (gmsg.serverContent?.modelTurn?.parts) {
+          gmsg.serverContent.modelTurn.parts.forEach(part => {
+            if (part.inlineData?.mimeType?.startsWith('audio/')) {
+              ws.send(JSON.stringify({
+                type: 'audio-out',
+                mimeType: part.inlineData.mimeType,
+                audio: part.inlineData.data
+              }));
+              console.log('[WS] Audio chunk sent to client:', part.inlineData.mimeType);
+            }
+          });
+        }
 
-    //     // Forward transcriptions
-    //     if (gmsg.outputTranscription?.text) {
-    //       ws.send(JSON.stringify({
-    //         type: 'transcription',
-    //         text: gmsg.outputTranscription.text
-    //       }));
-    //       console.log('[WS] Transcription sent to client:', gmsg.outputTranscription.text);
-    //     }
+        // Forward transcriptions
+        if (gmsg.outputTranscription?.text) {
+          ws.send(JSON.stringify({
+            type: 'transcription',
+            text: gmsg.outputTranscription.text
+          }));
+          console.log('[WS] Transcription sent to client:', gmsg.outputTranscription.text);
+        }
 
-    //   } catch (err) {
-    //     console.error('[WS] Error parsing Gemini message:', err);
-    //   }
-    // });
+      } catch (err) {
+        console.error('[WS] Error parsing Gemini message:', err);
+      }
+    });
 
     ws.on('close', () => {
       console.log('[WS] Client disconnected');
