@@ -13,12 +13,12 @@ export async function initGeminiSession() {
   const geminiWS = new WebSocket(GEMINI_WS_URL);
 
   geminiWS.on('open', () => {
-    console.log(`✅ Gemini session connected for SID: ${sid}`);
+    console.log(`Gemini session connected for SID: ${sid}`);
 
     // Minimal setup — no invalid gender field
     const setupMsg = {
       setup: {
-        model: `models/${config.gemini.model}`, // e.g., models/gemini-2.0-flash-live-001
+        model: `models/${config.gemini.model}`,
         generationConfig: {
           temperature: 0.9,
           candidateCount: 1,
@@ -60,12 +60,12 @@ export async function initGeminiSession() {
   });
 
   geminiWS.on('close', (code, reason) => {
-    console.log(`❌ Gemini session closed for SID: ${sid}. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
+    console.log(`Gemini session closed for SID: ${sid}. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
     sessions.delete(sid);
   });
 
   geminiWS.on('error', (err) => {
-    console.error(`🚨 Gemini WS error for SID ${sid}:`, err);
+    console.error(`Gemini WS error for SID ${sid}:`, err);
   });
 
   sessions.set(sid, { ws: geminiWS });
