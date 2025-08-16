@@ -1,7 +1,6 @@
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config/index.js';
-import e from 'cors';
 
 const sessions = new Map(); // sid -> { ws }
 
@@ -53,17 +52,17 @@ export async function initGeminiSession() {
       resolve(sid); // resolve only once connected
     });
 
-    geminiWS.on("message", (data) => {
-      try {
-        const msg = JSON.parse(data.toString());
-        console.log(`📥 Gemini -> ${sid}:`, msg);
+    // geminiWS.on("message", (data) => {
+    //   try {
+    //     const msg = JSON.parse(data.toString());
+    //     console.log(`📥 Gemini -> ${sid}:`, msg);
 
-        // Optional: forward to client here
-        // e.g., if (sessions.get(sid)?.client) sessions.get(sid).client.send(JSON.stringify(msg));
-      } catch (err) {
-        console.error(`❌ Error parsing Gemini message for SID ${sid}:`, err);
-      }
-    });
+    //     // Optional: forward to client here
+    //     // e.g., if (sessions.get(sid)?.client) sessions.get(sid).client.send(JSON.stringify(msg));
+    //   } catch (err) {
+    //     console.error(`❌ Error parsing Gemini message for SID ${sid}:`, err);
+    //   }
+    // });
 
     geminiWS.on("close", (code, reason) => {
       console.log(

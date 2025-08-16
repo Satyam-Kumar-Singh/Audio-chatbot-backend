@@ -14,6 +14,42 @@ export function initClientWSS(server) {
     }
     console.log(`[WS] Client connected with SID: ${sid}`);
 
+    // 🔗 Attach Gemini → Client forwarding
+    geminiSession.ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+
+        // Forward everything so client can handle transcripts / events
+        client.send(JSON.stringify({ from: 'gemini', payload: msg }));
+
+        // If Gemini sends audio back
+        if (msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.mimeType?.startsWith("audio")
+        ) {
+          const audioData = msg.serverContent.modelTurn.parts[0].inlineData;
+          client.send(JSON.stringify({
+            from: "gemini",
+            type: "audio-chunk",
+            mimeType: audioData.mimeType,
+            data: audioData.data, // base64 PCM16
+          }));
+        }
+
+      } catch (err) {
+        console.error('[WS] Error parsing Gemini message:', err);
+      }
+    });
+
+
+    geminiSession.ws.on('close', () => {
+      client.send(JSON.stringify({ from: 'gemini', event: 'session_closed' }));
+      client.close();
+    });
+
+    geminiSession.ws.on('error', (err) => {
+      client.send(JSON.stringify({ from: 'gemini', error: err.message }));
+    });
+
+
     // Client → Server → Gemini
     client.on('message', (raw) => {
       let msg;
@@ -34,7 +70,7 @@ export function initClientWSS(server) {
             }
           }
         }));
-        console.log('[WS] Audio chunk sent to Gemini, length:', msg.audio.length);
+        // console.log('[WS] Audio chunk sent to Gemini, length:', msg.audio.length);
       }
 
       if (msg.type === 'end-audio') {
