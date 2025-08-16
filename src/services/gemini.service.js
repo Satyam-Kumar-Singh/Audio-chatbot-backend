@@ -1,75 +1,82 @@
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config/index.js';
+import e from 'cors';
 
 const sessions = new Map(); // sid -> { ws }
 
 export async function initGeminiSession() {
   const sid = uuidv4();
 
-  // Correct Live API WS endpoint
-  const GEMINI_WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${config.gemini.apiKey}`;
-
+  const GEMINI_WS_URL =
+    `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${config.gemini.apiKey}`;
   const geminiWS = new WebSocket(GEMINI_WS_URL);
 
-  geminiWS.on('open', () => {
-    console.log(`Gemini session connected for SID: ${sid}`);
+  return new Promise((resolve, reject) => {
+    geminiWS.on("open", () => {
+      console.log(`✅ Gemini session connected for SID: ${sid}`);
 
-    // Minimal setup — no invalid gender field
-    const setupMsg = {
-      setup: {
-        model: `models/${config.gemini.model}`,
-        generationConfig: {
-          temperature: 0.9,
-          candidateCount: 1,
-          responseModalities: ["AUDIO"], // Expect audio output
-          speechConfig: {} // Keep empty unless docs specify supported fields
+      // Initial setup message
+      const setupMsg = {
+        setup: {
+          model: `models/${config.gemini.model}`,
+          generationConfig: {
+            temperature: 0.9,
+            candidateCount: 1,
+            responseModalities: ["AUDIO"],
+            speechConfig: {},
+          },
+          systemInstruction: {
+            parts: [
+              {
+                text:
+                  "You are Rev, a voice assistant for Revolt Motors. " +
+                  "Answer only about Revolt bikes, booking, service, charging, specifications, dealerships, and support. " +
+                  "If asked unrelated questions, politely steer back to Revolt.",
+              },
+            ],
+          },
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+            },
+          },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
-        systemInstruction: {
-          role: "SYSTEM",
-          parts: [
-            {
-              text:
-                "You are Rev, a voice assistant for Revolt Motors. " +
-                "Answer only about Revolt bikes, booking, service, charging, specifications, dealerships, and support. " +
-                "If asked unrelated questions, politely steer back to Revolt."
-            }
-          ]
-        },
-        realtimeInputConfig: {
-          automaticActivityDetection: {
-            disabled: false
-          }
-        },
-        inputAudioTranscription: {},   // enable transcription of incoming audio
-        outputAudioTranscription: {}   // enable transcription of AI's audio output
+      };
+
+      geminiWS.send(JSON.stringify(setupMsg));
+
+      // store session
+      sessions.set(sid, { ws: geminiWS });
+      resolve(sid); // resolve only once connected
+    });
+
+    geminiWS.on("message", (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        console.log(`📥 Gemini -> ${sid}:`, msg);
+
+        // Optional: forward to client here
+        // e.g., if (sessions.get(sid)?.client) sessions.get(sid).client.send(JSON.stringify(msg));
+      } catch (err) {
+        console.error(`❌ Error parsing Gemini message for SID ${sid}:`, err);
       }
-    };
+    });
 
-    geminiWS.send(JSON.stringify(setupMsg));
+    geminiWS.on("close", (code, reason) => {
+      console.log(
+        `🔌 Gemini session closed for SID: ${sid}. Code: ${code}, Reason: ${reason || "No reason"}`
+      );
+      sessions.delete(sid);
+    });
+
+    geminiWS.on("error", (err) => {
+      console.error(`❌ Gemini WS error for SID ${sid}:`, err);
+      reject(err);
+    });
   });
-
-  geminiWS.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      console.log(`📥 Gemini -> ${sid}:`, msg);
-      // You can forward this to the client here if needed
-    } catch (err) {
-      console.error(`Error parsing Gemini message for SID ${sid}:`, err);
-    }
-  });
-
-  geminiWS.on('close', (code, reason) => {
-    console.log(`Gemini session closed for SID: ${sid}. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
-    sessions.delete(sid);
-  });
-
-  geminiWS.on('error', (err) => {
-    console.error(`Gemini WS error for SID ${sid}:`, err);
-  });
-
-  sessions.set(sid, { ws: geminiWS });
-  return sid;
 }
 
 export function getGeminiSession(sid) {
