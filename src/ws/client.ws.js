@@ -23,13 +23,14 @@ export function initClientWSS(server) {
         client.send(JSON.stringify({ from: 'gemini', payload: msg }));
 
         // If Gemini sends audio back
-        if (msg.modelOutput?.[0]?.audio?.data) {
-          const audioBase64 = msg.modelOutput[0].audio.data;
-
+        if (msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.mimeType?.startsWith("audio")
+        ) {
+          const audioData = msg.serverContent.modelTurn.parts[0].inlineData;
           client.send(JSON.stringify({
-            from: 'gemini',
-            type: 'audio-chunk',
-            audio: audioBase64 // base64 PCM16 chunk
+            from: "gemini",
+            type: "audio-chunk",
+            mimeType: audioData.mimeType,
+            data: audioData.data, // base64 PCM16
           }));
         }
 
@@ -69,7 +70,7 @@ export function initClientWSS(server) {
             }
           }
         }));
-        console.log('[WS] Audio chunk sent to Gemini, length:', msg.audio.length);
+        // console.log('[WS] Audio chunk sent to Gemini, length:', msg.audio.length);
       }
 
       if (msg.type === 'end-audio') {
